@@ -29,23 +29,41 @@ def remove_stopwords_and_stem(stop_words, speech_one):
 def count_words(s):
     counter = Counter(s)
     common_words = (counter.most_common())
+    return common_words
+
+
+def print_weights(common_words, s, target):
     for i in range(min(len(common_words), 3)):
-        print(common_words[i][0], "TF-IDF:", tfidf(i, common_words, s))
+        print(common_words[i][0], "TF-IDF:", tfidf(i, common_words, s, target))
 
 
 def tf(i, common_words, s):
     return common_words[i][1] / len(s)
 
 
-def idf(i, common_words):
-    res = math.log(len(speech)) / sum(1 for sp in speech if common_words[i][0] in sp)
-    if res < 0.0:
+def idf(i, common_words, target):
+    ni = 0
+    if target is names:
+        column = 'member_name'
+    elif target is parties:
+        column = 'political_party'
+    else:
+        target = []
+        ni = sum(1 for sp in speech if common_words[i][0] in sp)
+
+    for element in target:
+        if any(common_words[i][0] in l for l in df[df[column] == element]['processed_speech']):
+            ni += 1
+
+    idf_ = math.log(len(speech)) / ni
+
+    if idf_ < 0.0:
         return 0.0
-    return res
+    return idf_
 
 
-def tfidf(i, common_words, s):
-    return tf(i, common_words, s) * idf(i, common_words)
+def tfidf(i, common_words, s, target):
+    return tf(i, common_words, s) * idf(i, common_words, target)
 
 
 def main():
@@ -57,28 +75,34 @@ def main():
 
     global speech
     speech = [remove_stopwords_and_stem(stop_words, i) for i in df['speech']]
-    #df['processed_speech'] = speech
     df['processed_speech'] = [remove_stopwords_and_stem(stop_words, i) for i in df['speech']]
+
+    global names
     names = df['member_name'].unique()
+
+    global parties
     parties = df['political_party'].unique()
+
     # Per parliament member
     for name in names:
         print("=======", name, "======")
         temp_list1 = df[df['member_name'] == name]['processed_speech'].tolist()
-        speech_per_name = [x for l1 in temp_list1 for x in l1]
-        print(speech_per_name)
-        count_words(speech_per_name)
+        speech_of_member = [x for l1 in temp_list1 for x in l1]
+        common_words = count_words(speech_of_member)
+        print_weights(common_words, speech_of_member, names)
+
     # Per parties
     for party in parties:
         print("=======", party, "======")
         temp_list2 = df[df['political_party'] == party]['processed_speech']
-        speech_per_party = [x for l2 in temp_list2 for x in l2]
-        #count_words(speech_per_party)
+        speech_of_party = [x for l2 in temp_list2 for x in l2]
+        common_words = count_words(speech_of_party)
+        print_weights(common_words, speech_of_party, parties)
 
-    # PER SPEECH
+    # Per speech
     for s in df['processed_speech']:
-        #count_words(s)
-        break
+        common_words = count_words(s)
+        print_weights(common_words, s, [])
 
 
 if __name__ == "__main__":
