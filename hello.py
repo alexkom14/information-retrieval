@@ -15,10 +15,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 np.set_printoptions(threshold=np.inf)
 df = pd.read_csv("Greek_Parliament_Proceedings_1989_2020_DataSample.csv")
 stemmer = GreekStemmer()
+global_names = df['member_name'].unique()
+global_parties = df['political_party'].unique()
 
 
 def remove_stopwords_and_stem(stop_words, speech_one):
-    # print(speech_one)
     word_tokens = word_tokenize(speech_one)
     filtered_sentence = [w for w in word_tokens if (not w.lower() in stop_words) and w.isalnum()]
 
@@ -28,7 +29,7 @@ def remove_stopwords_and_stem(stop_words, speech_one):
         d = {ord('\N{COMBINING ACUTE ACCENT}'): None}
         word = unicodedata.normalize('NFD', w).upper().translate(d)
         speech_temp.append(stemmer.stem(word))
-        # print(w, ':', stemmer.stem(word))
+
     return speech_temp
 
 
@@ -51,9 +52,9 @@ def tf(word_count, s):
 def idf(i, common_words, target):
     ni = 0
     column = ''
-    if target is names:
+    if target is global_names:
         column = 'member_name'
-    elif target is parties:
+    elif target is global_parties:
         column = 'political_party'
     else:
         target = []
@@ -62,7 +63,7 @@ def idf(i, common_words, target):
         if any(common_words[i][0] in l for l in df[df[column] == element]['processed_speech']):
             ni += 1
 
-    idf_ = math.log(len(speech)) / ni
+    idf_ = math.log(len(df['processed_speech'])) / ni
 
     if idf_ < 0.0:
         return 0.0
@@ -70,8 +71,8 @@ def idf(i, common_words, target):
 
 
 def idf_simple(word):
-    ni = sum(1 for sp in speech if word in sp)
-    idf_ = math.log(len(speech)) / ni
+    ni = sum(1 for sp in df['processed_speech'] if word in sp)
+    idf_ = math.log(len(df['processed_speech'])) / ni
 
     if idf_ < 0.0:
         return 0.0
@@ -139,21 +140,15 @@ def cosine_similarity(query, doc):
 
 
 def main():
+    # reading and store stop words
     stop_words_list = []
     with open('stopwords.txt', 'r', encoding='utf8') as filestream:
         for line in filestream:
             stop_words_list.append(line.lstrip().rstrip())
     stop_words = set(stop_words_list)
 
-    global speech
-    speech = [remove_stopwords_and_stem(stop_words, i) for i in df['speech']]
+    #
     df['processed_speech'] = [remove_stopwords_and_stem(stop_words, i) for i in df['speech']]
-    # print(speech)
-    global names
-    names = df['member_name'].unique()
-
-    global parties
-    parties = df['political_party'].unique()
 
     '''
     # Per parliament member
@@ -177,9 +172,12 @@ def main():
     # for doc, s in enumerate(df['processed_speech']):
     # print(doc, s)
 
+    # init tfidf vectorizer
     tfidf_vectorizer = TfidfVectorizer(tokenizer=lambda i: i, lowercase=False,
                                        smooth_idf=False)  # https://stackoverflow.com/a/31338009
-    tfidf_matrix = tfidf_vectorizer.fit_transform(speech)
+    # 2d array. columns are each unique word. rows are speeches
+    # values are weights of each word
+    tfidf_matrix = tfidf_vectorizer.fit_transform(df['processed_speech'])
     tfidf_matrix = tfidf_matrix.toarray()
     tfidf_words = tfidf_vectorizer.get_feature_names_out()
 
@@ -188,9 +186,12 @@ def main():
 
     # df_result = pd.DataFrame(result.toarray(), columns=tfidf_words)
 
+    # exercise 1
     inv_index = build_index()
+    print(inv_index)
     print(make_query(stop_words, tfidf_vectorizer, tfidf_matrix, "αγροτης στρατος κυβερνηση", inv_index, 10))
 
+    # exercise 4
     svd = TruncatedSVD(random_state=42)
     U = svd.fit_transform(tfidf_matrix)
     V = svd.components_
