@@ -11,6 +11,7 @@ import math
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+
 np.set_printoptions(threshold=np.inf)
 df = pd.read_csv("Greek_Parliament_Proceedings_1989_2020_DataSample.csv")
 stemmer = GreekStemmer()
@@ -24,8 +25,8 @@ def remove_stopwords_and_stem(stop_words, speech_one):
     speech_temp = []
     for w in filtered_sentence:
         # https://stackoverflow.com/a/62899722
-        d = {ord('\N{COMBINING ACUTE ACCENT}'):None}
-        word = unicodedata.normalize('NFD',w).upper().translate(d)
+        d = {ord('\N{COMBINING ACUTE ACCENT}'): None}
+        word = unicodedata.normalize('NFD', w).upper().translate(d)
         speech_temp.append(stemmer.stem(word))
         # print(w, ':', stemmer.stem(word))
     return speech_temp
@@ -49,6 +50,7 @@ def tf(word_count, s):
 # PARTY AND MEMBER
 def idf(i, common_words, target):
     ni = 0
+    column = ''
     if target is names:
         column = 'member_name'
     elif target is parties:
@@ -79,6 +81,7 @@ def idf_simple(word):
 def tfidf(i, common_words, s, target):
     return tf(i, common_words, s) * idf(i, common_words, target)
 
+
 '''
 def build_index():
     inverted_index = {}
@@ -94,6 +97,8 @@ def build_index():
                 inverted_index[word].append([doc, tf(word_count, s) * idf_])
     return inverted_index
 '''
+
+
 def build_index():
     inverted_index = {}
     for doc, s in enumerate(df['processed_speech']):
@@ -105,6 +110,7 @@ def build_index():
             else:
                 inverted_index[word].append(doc)
     return inverted_index
+
 
 def make_query(stop_words, tfidf_vectorizer, tfidf_matrix, query, inverted_index, k):
     processed_query = remove_stopwords_and_stem(stop_words, query)
@@ -118,7 +124,7 @@ def make_query(stop_words, tfidf_vectorizer, tfidf_matrix, query, inverted_index
         for query_word in unique_words:
             # Calculating document vectors
             if query_word in inverted_index:
-                for doc in inverted_index[query_word][1:]: #first element is the idf
+                for doc in inverted_index[query_word][1:]:  # first element is the idf
                     relevant_docs.add(doc)
         for doc in relevant_docs:
             cos_sim_list.append([doc, cosine_similarity(ready_query, tfidf_matrix[doc])])
@@ -142,7 +148,7 @@ def main():
     global speech
     speech = [remove_stopwords_and_stem(stop_words, i) for i in df['speech']]
     df['processed_speech'] = [remove_stopwords_and_stem(stop_words, i) for i in df['speech']]
-    #print(speech)
+    # print(speech)
     global names
     names = df['member_name'].unique()
 
@@ -168,18 +174,19 @@ def main():
     '''
 
     # Per speech
-    #for doc, s in enumerate(df['processed_speech']):
-        #print(doc, s)
+    # for doc, s in enumerate(df['processed_speech']):
+    # print(doc, s)
 
-    tfidf_vectorizer = TfidfVectorizer(tokenizer=lambda i: i, lowercase=False, smooth_idf=False)  # https://stackoverflow.com/a/31338009
+    tfidf_vectorizer = TfidfVectorizer(tokenizer=lambda i: i, lowercase=False,
+                                       smooth_idf=False)  # https://stackoverflow.com/a/31338009
     tfidf_matrix = tfidf_vectorizer.fit_transform(speech)
     tfidf_matrix = tfidf_matrix.toarray()
     tfidf_words = tfidf_vectorizer.get_feature_names_out()
 
-    #df_test = pd.DataFrame(tfidf_matrix, columns=tfidf_words)
-    #print(df_test['ΑΠΟΤΥΠΩΘ'])
+    # df_test = pd.DataFrame(tfidf_matrix, columns=tfidf_words)
+    # print(df_test['ΑΠΟΤΥΠΩΘ'])
 
-    #df_result = pd.DataFrame(result.toarray(), columns=tfidf_words)
+    # df_result = pd.DataFrame(result.toarray(), columns=tfidf_words)
 
     inv_index = build_index()
     print(make_query(stop_words, tfidf_vectorizer, tfidf_matrix, "αγροτης στρατος κυβερνηση", inv_index, 10))
@@ -203,6 +210,7 @@ def main():
     M = dot(tfidf_matrix, V_selected.T)
     print(len(tfidf_words))
     '''
+
 
 if __name__ == "__main__":
     main()
