@@ -80,7 +80,7 @@ def idf_simple(word):
 
 
 def tfidf(i, common_words, s, target):
-    return tf(i, common_words, s) * idf(i, common_words, target)
+    return tf(common_words[i][1], s) * idf(i, common_words, target)
 
 
 '''
@@ -150,11 +150,27 @@ def main():
     #
     df['processed_speech'] = [remove_stopwords_and_stem(stop_words, i) for i in df['speech']]
 
+    for name in global_names:
+        print("=======", name, "======")
+        for year in range(1989, 2021):
+            temp_list1 = df[(df['member_name'] == name) & (df['sitting_date'].str.contains(str(year)))]['processed_speech'].tolist()
+            speech_of_member = [x for l1 in temp_list1 for x in l1]
+            common_words = count_words(speech_of_member)
+            print_weights(common_words, speech_of_member, global_names)
+
+        # Per parties
+    for party in global_parties:
+        print("=======", party, "======")
+        for year in range(1989, 2021):
+            temp_list2 = df[(df['political_party'] == party) & (df['sitting_date'].str.contains(str(year)))]['processed_speech'].tolist()
+            speech_of_party = [x for l2 in temp_list2 for x in l2]
+            common_words = count_words(speech_of_party)
+            print_weights(common_words, speech_of_party, global_parties)
     '''
     # Per parliament member
     for name in names:
         print("=======", name, "======")
-        temp_list1 = df[df['member_name'] == name]['processed_speech'].tolist()
+        temp_list1 = df[(df['member_name'] == name)]['processed_speech'].tolist()
         speech_of_member = [x for l1 in temp_list1 for x in l1]
         common_words = count_words(speech_of_member)
         #print_weights(common_words, speech_of_member, names)
@@ -199,6 +215,7 @@ def main():
     print(U.shape)
     print(S.shape)
     print(V.shape)
+
     '''
     #U, S, V = np.linalg.svd(tfidf_matrix)
     print(U.shape)
