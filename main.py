@@ -113,6 +113,7 @@ def build_index():
     return inverted_index
 
 
+# k represents top-k results
 def make_query(stop_words, tfidf_vectorizer, tfidf_matrix, query, inverted_index, k):
     processed_query = remove_stopwords_and_stem(stop_words, query)
     unique_words = set(processed_query)
@@ -140,6 +141,8 @@ def cosine_similarity(query, doc):
 
 
 def main():
+    # import nltk
+    # nltk.download('punkt')
     # reading and store stop words
     stop_words_list = []
     with open('stopwords.txt', 'r', encoding='utf8') as filestream:
@@ -147,50 +150,13 @@ def main():
             stop_words_list.append(line.lstrip().rstrip())
     stop_words = set(stop_words_list)
 
-    #
+    # create new column in dataframe. Each row is a processed speech
     df['processed_speech'] = [remove_stopwords_and_stem(stop_words, i) for i in df['speech']]
-
-    for name in global_names:
-        print("=======", name, "======")
-        for year in range(1989, 2021):
-            temp_list1 = df[(df['member_name'] == name) & (df['sitting_date'].str.contains(str(year)))]['processed_speech'].tolist()
-            speech_of_member = [x for l1 in temp_list1 for x in l1]
-            common_words = count_words(speech_of_member)
-            print_weights(common_words, speech_of_member, global_names)
-
-        # Per parties
-    for party in global_parties:
-        print("=======", party, "======")
-        for year in range(1989, 2021):
-            temp_list2 = df[(df['political_party'] == party) & (df['sitting_date'].str.contains(str(year)))]['processed_speech'].tolist()
-            speech_of_party = [x for l2 in temp_list2 for x in l2]
-            common_words = count_words(speech_of_party)
-            print_weights(common_words, speech_of_party, global_parties)
-    '''
-    # Per parliament member
-    for name in names:
-        print("=======", name, "======")
-        temp_list1 = df[(df['member_name'] == name)]['processed_speech'].tolist()
-        speech_of_member = [x for l1 in temp_list1 for x in l1]
-        common_words = count_words(speech_of_member)
-        #print_weights(common_words, speech_of_member, names)
-
-    # Per parties
-    for party in parties:
-        print("=======", party, "======")
-        temp_list2 = df[df['political_party'] == party]['processed_speech']
-        speech_of_party = [x for l2 in temp_list2 for x in l2]
-        common_words = count_words(speech_of_party)
-        #print_weights(common_words, speech_of_party, parties)
-    '''
-
-    # Per speech
-    # for doc, s in enumerate(df['processed_speech']):
-    # print(doc, s)
 
     # init tfidf vectorizer
     tfidf_vectorizer = TfidfVectorizer(tokenizer=lambda i: i, lowercase=False,
                                        smooth_idf=False)  # https://stackoverflow.com/a/31338009
+
     # 2d array. columns are each unique word. rows are speeches
     # values are weights of each word
     tfidf_matrix = tfidf_vectorizer.fit_transform(df['processed_speech'])
@@ -199,35 +165,60 @@ def main():
 
     # df_test = pd.DataFrame(tfidf_matrix, columns=tfidf_words)
     # print(df_test['ΑΠΟΤΥΠΩΘ'])
-
     # df_result = pd.DataFrame(result.toarray(), columns=tfidf_words)
 
-    # exercise 1
+    """Exercise 1"""
+    print("____EXERCISE 1____")
     inv_index = build_index()
     print(inv_index)
     print(make_query(stop_words, tfidf_vectorizer, tfidf_matrix, "αγροτης στρατος κυβερνηση", inv_index, 10))
+    """End of Exercise 1"""
 
-    # exercise 4
-    svd = TruncatedSVD(random_state=42)
+    """Exercise 2"""
+    print("____EXERCISE 2____")
+    # per parliament member
+    for name in global_names:
+        print("=======", name, "======")
+        for year in range(1989, 2021):
+            temp_list1 = df[(df['member_name'] == name) & (df['sitting_date'].str.contains(str(year)))]['processed_speech'].tolist()
+            speech_of_member = [x for l1 in temp_list1 for x in l1]
+            common_words = count_words(speech_of_member)
+            print_weights(common_words, speech_of_member, global_names)
+
+    # Per parties
+    for party in global_parties:
+        print("=======", party, "======")
+        for year in range(1989, 2021):
+            temp_list2 = df[(df['political_party'] == party) & (df['sitting_date'].str.contains(str(year)))]['processed_speech'].tolist()
+            speech_of_party = [x for l2 in temp_list2 for x in l2]
+            common_words = count_words(speech_of_party)
+            print_weights(common_words, speech_of_party, global_parties)
+    """End of Exercise 2"""
+
+    """Exercise 4"""
+    print("____EXERCISE 4____")
+    svd = TruncatedSVD(random_state=42, n_components=100)
     U = svd.fit_transform(tfidf_matrix)
     V = svd.components_
-    S = svd.singular_values_
-    print(U.shape)
-    print(S.shape)
-    print(V.shape)
+    S = svd.singular_values_  # ποσο σημαντικο ειναι καθε κονσεπτ
 
-    '''
-    #U, S, V = np.linalg.svd(tfidf_matrix)
-    print(U.shape)
-    print(S.shape)
-    print(V.shape)
-    print(S)
+    S_sum = 0
+    for i in range(0,len(S)):
+        S_sum += S[i]**2
 
-    V_selected = V[:20, :]
-    print(V_selected[3])
-    M = dot(tfidf_matrix, V_selected.T)
-    print(len(tfidf_words))
-    '''
+    temp = 0
+    threshold = S_sum * 0.8
+    flag = 0
+    for i in range(0,len(S)):
+        temp += S[i]**2
+        if temp > threshold:
+            flag = i
+            break
+
+    V_selected = V[:flag, :]  # καθε σειρα ειναι ενα κονσεπτ και οι τιμες κάθε row δείχνει ποσο συμβάλει στο κονσεπτ
+    M = dot(tfidf_matrix, V_selected.T)  # κάθε [ ] είναι ομιλία και έχει N νούμερα κατα πόσο ανήκει στο κάθε κονσεπτ
+    print(M)
+    """End of Exercise 4"""
 
 
 if __name__ == "__main__":
