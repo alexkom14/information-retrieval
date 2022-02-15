@@ -39,8 +39,9 @@ def count_words(s):
     return common_words
 
 
-def print_weights(common_words, s, target):
-    for i in range(min(len(common_words), 3)):
+# N represents how many words to be displayed
+def print_weights(common_words, s, target, N):
+    for i in range(min(len(common_words), N)):
         print(common_words[i][0], "TF-IDF:", tfidf(i, common_words, s, target))
 
 
@@ -183,7 +184,7 @@ def main():
             temp_list1 = df[(df['member_name'] == name) & (df['sitting_date'].str.contains(str(year)))]['processed_speech'].tolist()
             speech_of_member = [x for l1 in temp_list1 for x in l1]
             common_words = count_words(speech_of_member)
-            print_weights(common_words, speech_of_member, global_names)
+            print_weights(common_words, speech_of_member, global_names, 4)
 
     # Per parties
     for party in global_parties:
@@ -192,7 +193,17 @@ def main():
             temp_list2 = df[(df['political_party'] == party) & (df['sitting_date'].str.contains(str(year)))]['processed_speech'].tolist()
             speech_of_party = [x for l2 in temp_list2 for x in l2]
             common_words = count_words(speech_of_party)
-            print_weights(common_words, speech_of_party, global_parties)
+            print_weights(common_words, speech_of_party, global_parties, 4)
+
+    # Per speech
+    for s in df['processed_speech']:
+        common_words = count_words(s)
+        for w in common_words:
+            word = w[0]
+            word_count = w[1]
+            tfidf = tf(word_count, s) * idf_simple(word)
+            print(tfidf)
+
     """End of Exercise 2"""
 
     """Exercise 4"""
