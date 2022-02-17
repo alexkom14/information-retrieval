@@ -145,6 +145,7 @@ def main():
     # import nltk
     # nltk.download('punkt')
     # reading and store stop words
+    K = 3
     stop_words_list = []
     with open('stopwords.txt', 'r', encoding='utf8') as filestream:
         for line in filestream:
@@ -153,6 +154,9 @@ def main():
 
     # create new column in dataframe. Each row is a processed speech
     df['processed_speech'] = [remove_stopwords_and_stem(stop_words, i) for i in df['speech']]
+    df['year'] = [df['sitting_date'][y][-4:] for y in range(df.shape[0])] # new column year
+
+    ### MAYBE DELETE SPEECH AND SITTING_DATE COLUMN
 
     # init tfidf vectorizer
     tfidf_vectorizer = TfidfVectorizer(tokenizer=lambda i: i, lowercase=False,
@@ -162,11 +166,13 @@ def main():
     # values are weights of each word
     tfidf_matrix = tfidf_vectorizer.fit_transform(df['processed_speech'])
     tfidf_matrix = tfidf_matrix.toarray()
-    tfidf_words = tfidf_vectorizer.get_feature_names_out()
 
-    # df_test = pd.DataFrame(tfidf_matrix, columns=tfidf_words)
-    # print(df_test['ΑΠΟΤΥΠΩΘ'])
-    # df_result = pd.DataFrame(result.toarray(), columns=tfidf_words)
+    feature_array = np.array(tfidf_vectorizer.get_feature_names_out()) # array containing every word of the speeches
+
+    #df_test = pd.DataFrame(tfidf_matrix, columns=tfidf_words)
+    #print(df_test)
+    #print("test", df_test['ΕΥΧΑΡΙΣΤ'])
+    #df_result = pd.DataFrame(result.toarray(), columns=tfidf_words)
 
     """Exercise 1"""
     print("____EXERCISE 1____")
@@ -177,16 +183,42 @@ def main():
 
     """Exercise 2"""
     print("____EXERCISE 2____")
+    print()
+    # per speech
+    # calculates top k of one speech
+    for i, s in enumerate(df['processed_speech']):
+        print("=======Speech", i+1, "======")
+        top_indexes = np.argpartition(tfidf_matrix[i], -K)[-K:] # finds the indexes where the top k values are located
+        for j in top_indexes:
+            print("word: ", feature_array[j], "tfidf: ", tfidf_matrix[i][j])
+    print()
     # per parliament member
-    for name in global_names:
-        print("=======", name, "======")
-        for year in range(1989, 2021):
-            temp_list1 = df[(df['member_name'] == name) & (df['sitting_date'].str.contains(str(year)))]['processed_speech'].tolist()
-            speech_of_member = [x for l1 in temp_list1 for x in l1]
-            common_words = count_words(speech_of_member)
-            print_weights(common_words, speech_of_member, global_names, 4)
-
-    # Per parties
+    df.loc[0, ['year']] = '1999' #remove later
+    for year in range(1989, 2021):
+        speech_per_member = df[df.year == str(year)].groupby(['member_name'], as_index=False).agg({'processed_speech': 'sum'}) #group by member and concat the processed_speech cells
+        if not speech_per_member.empty:
+            print("=======", year, "========")
+            member_tfidf = tfidf_vectorizer.fit_transform(speech_per_member['processed_speech']).toarray() # calculate tf-idf
+            member_feature_array = np.array(tfidf_vectorizer.get_feature_names_out())   # array containing every word of the speeches
+            for i, name in enumerate(speech_per_member['member_name']):
+                top_indexes = np.argpartition(member_tfidf[i], -K)[-K:]  # finds the indexes where the top k values are located
+                print("------", name, "------")
+                for j in top_indexes:
+                    print("word: ", member_feature_array[j], "tfidf: ", member_tfidf[i][j])
+    print()
+    # Per party
+    for year in range(1989, 2021):
+        speech_per_party = df[df.year == str(year)].groupby(['political_party'], as_index=False).agg({'processed_speech': 'sum'}) #group by party and concat the processed_speech cells
+        if not speech_per_party.empty:
+            print("=======", year, "========")
+            party_tfidf = tfidf_vectorizer.fit_transform(speech_per_party['processed_speech']).toarray() # calculate tf-idf
+            party_feature_array = np.array(tfidf_vectorizer.get_feature_names_out()) # array containing every word of the speeches
+            for i, party_name in enumerate(speech_per_party['political_party']):
+                top_indexes = np.argpartition(party_tfidf[i], -K)[-K:]  # finds the indexes where the top k values are located
+                print("------", party_name, "------")
+                for j in top_indexes:
+                    print("word: ", party_feature_array[j], "tfidf: ", party_tfidf[i][j])
+    '''
     for party in global_parties:
         print("=======", party, "======")
         for year in range(1989, 2021):
@@ -202,8 +234,8 @@ def main():
             word = w[0]
             word_count = w[1]
             tfidf = tf(word_count, s) * idf_simple(word)
-            print(tfidf)
-
+            #print(tfidf)
+    '''
     """End of Exercise 2"""
 
     """Exercise 4"""
@@ -228,7 +260,7 @@ def main():
 
     V_selected = V[:flag, :]  # καθε σειρα ειναι ενα κονσεπτ και οι τιμες κάθε row δείχνει ποσο συμβάλει στο κονσεπτ
     M = dot(tfidf_matrix, V_selected.T)  # κάθε [ ] είναι ομιλία και έχει N νούμερα κατα πόσο ανήκει στο κάθε κονσεπτ
-    print(M)
+    ##########print(M)
     """End of Exercise 4"""
 
 
