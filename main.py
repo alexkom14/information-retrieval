@@ -291,10 +291,13 @@ def main():
     k = int(input("Give an integer k for top-k similar member couples, depend on their speeches: "))
 
     if k > len(sorted_similarities):
-        print(sorted_similarities)
-    else:
-        for i in range(0, k):
-            print(sorted_similarities[i])
+        k = len(sorted_similarities)
+    for i in range(0, k):
+        sort_sim = sorted_similarities[i]
+        sim = sort_sim[0]
+        mem1 = df['member_name'][sort_sim[1]]
+        mem2 = df['member_name'][sort_sim[2]]
+        print(f"Couple {mem1} and {mem2} has {sim} similarity, depend on their speeches.")
     """End of Exercise 3"""
 
     # """Exercise 4"""
